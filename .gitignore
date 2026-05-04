@@ -1,0 +1,12 @@
+# PowerShell
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VSCode
+.vscode/
+
+# Temp
+*.tmp

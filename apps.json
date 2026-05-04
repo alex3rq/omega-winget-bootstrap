@@ -1,0 +1,131 @@
+{
+  "RuntimesAndDrivers": [
+    "Microsoft.VCRedist.2013.x64",
+    "Microsoft.VCRedist.2013.x86",
+    "Microsoft.VCRedist.2015+.x64",
+    "Microsoft.VCRedist.2015+.x86",
+    "Microsoft.DotNet.Native.Runtime",
+    "Microsoft.DotNet.DesktopRuntime.6",
+    "Microsoft.DotNet.DesktopRuntime.7",
+    "Microsoft.DotNet.DesktopRuntime.8",
+    "Microsoft.DotNet.DesktopRuntime.9",
+    "Microsoft.XNARedist",
+    "Microsoft.DirectX",
+    "Microsoft.GameInput",
+    "Nefarius.HidHide",
+    "ViGEm.ViGEmBus"
+  ],
+
+  "CoreSystem": [
+    "Microsoft.PowerShell",
+    "Microsoft.WindowsTerminal",
+    "mcmilk.7zip-zstd",
+    "Microsoft.PowerToys",
+    "JanDeDobbeleer.OhMyPosh",
+    "BitSum.ProcessLasso",
+    "Bitwarden.Bitwarden",
+    "BleachBit.BleachBit",
+    "CrystalDewWorld.CrystalDiskInfo",
+    "CrystalDewWorld.CrystalDiskMark",
+    "AntibodySoftware.WizTree",
+    "CodeSector.TeraCopy",
+    "Bopsoft.Listary",
+    "WinMerge.WinMerge",
+    "LocalSend.LocalSend",
+    "File-New-Project.EarTrumpet",
+    "Notepad++.Notepad++",
+    "Implbits.HashCheck",
+    "voidtools.Everything",
+    "REALiX.HWiNFO"
+  ],
+
+  "Networking": [
+    "Tailscale.Tailscale",
+    "Cloudflare.Warp",
+    "RustDesk.RustDesk",
+    "UnifiedIntents.UnifiedRemote",
+    "Parsec.Parsec",
+    "Parsec.ParsecVUD",
+    "Parsec.ParsecVDD",
+    "VirtualDesktop.Streamer",
+    "ProtonVPN.ProtonVPN"
+  ],
+
+  "Downloads": [
+    "qBittorrent.qBittorrent",
+    "SoftDeluxe.FreeDownloadManager",
+    "tonhowtf.OmniGet",
+    "Yt-dlp.Yt-dlp"
+  ],
+
+  "Peripherals": [
+    "Corsair.iCUE.5",
+    "Elgato.WaveLink",
+    "PlayStation.PlayStationAccessories"
+  ],
+
+  "Development": [
+    "Git.Git",
+    "Microsoft.WSL",
+    "OpenJS.NodeJS",
+    "Python.Python.3.14",
+    "Python.Launcher",
+    "Yarn.Yarn",
+    "pnpm.pnpm",
+    "Docker.DockerDesktop",
+    "Microsoft.VisualStudioCode",
+    "Microsoft.VisualStudio.2022.Community",
+    "JetBrains.Rider",
+    "GitHub.GitHubDesktop",
+    "SST.OpenCodeDesktop",
+    "Ollama.Ollama",
+    "Anthropic.Claude",
+    "Bruno.Bruno"
+  ],
+
+  "Communication": [
+    "Telegram.TelegramDesktop",
+    "Discord.Discord",
+    "Vencord.Vesktop",
+    "Brave.Brave",
+    "Notion.Notion",
+    "Obsidian.Obsidian"
+  ],
+
+  "Media": [
+    "VideoLAN.VLC",
+    "CodecGuide.K-LiteCodecPack.Full",
+    "Stremio.Stremio",
+    "Ytmdesktop.Ytmdesktop",
+    "HandBrake.HandBrake",
+    "Audacity.Audacity",
+    "ShareX.ShareX",
+    "Upscayl.Upscayl",
+    "jurplel.qView"
+  ],
+
+  "Gaming": [
+    "Valve.Steam",
+    "EpicGames.EpicGamesLauncher",
+    "GOGcom.GOGGalaxy",
+    "SpecialK.SpecialK",
+    "Playnite.Playnite",
+    "Microsoft.Xbox",
+    "NexusMods.Vortex",
+    "beeradmoore.dlss-swapper",
+    "LizardByte.Sunshine",
+    "Guru3D.RTSS",
+    "CXWorld.CapFrameX",
+    "developersu.ns-usbloader"
+  ],
+
+  "Streaming": [
+    "OBSProject.OBSStudio"
+  ],
+
+  "Design": [
+    "Canva.Affinity",
+    "Figma.Figma",
+    "Blender.Blender"
+  ]
+}
