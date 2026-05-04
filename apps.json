@@ -24,9 +24,7 @@
     "JanDeDobbeleer.OhMyPosh",
     "BitSum.ProcessLasso",
     "Bitwarden.Bitwarden",
-    "BleachBit.BleachBit",
     "CrystalDewWorld.CrystalDiskInfo",
-    "CrystalDewWorld.CrystalDiskMark",
     "AntibodySoftware.WizTree",
     "CodeSector.TeraCopy",
     "Bopsoft.Listary",
@@ -41,7 +39,6 @@
 
   "Networking": [
     "Tailscale.Tailscale",
-    "Cloudflare.Warp",
     "RustDesk.RustDesk",
     "UnifiedIntents.UnifiedRemote",
     "Parsec.Parsec",
@@ -86,7 +83,6 @@
   "Communication": [
     "Telegram.TelegramDesktop",
     "Discord.Discord",
-    "Vencord.Vesktop",
     "Brave.Brave",
     "Notion.Notion",
     "Obsidian.Obsidian"
@@ -105,15 +101,9 @@
   ],
 
   "Gaming": [
-    "Valve.Steam",
-    "EpicGames.EpicGamesLauncher",
-    "GOGcom.GOGGalaxy",
     "SpecialK.SpecialK",
-    "Playnite.Playnite",
     "Microsoft.Xbox",
-    "NexusMods.Vortex",
     "beeradmoore.dlss-swapper",
-    "LizardByte.Sunshine",
     "Guru3D.RTSS",
     "CXWorld.CapFrameX",
     "developersu.ns-usbloader"
