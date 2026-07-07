@@ -526,6 +526,23 @@ if (-not $wingetVersion) {
     exit 1
 }
 
+# Optional winget self-update check - silent if none available
+winget upgrade --id Microsoft.AppInstaller -e --accept-source-agreements 2>$null | Out-Null
+$wingetSelfUpdateAvailable = ($LASTEXITCODE -eq 0)
+
+if ($wingetSelfUpdateAvailable) {
+    if ($DryRun) {
+        Write-Host "[INFO] winget itself has an update available - run without -DryRun to update it." -ForegroundColor Yellow
+    } else {
+        Write-Host ""
+        $wingetUpdateChoice = Read-Host "A winget update is available. Update winget now before continuing? [y/N]"
+        if ($wingetUpdateChoice -and $wingetUpdateChoice.Trim().ToLower() -in @("y", "yes")) {
+            winget upgrade --id Microsoft.AppInstaller -e --silent --accept-source-agreements --accept-package-agreements
+            $wingetVersion = winget --version 2>$null
+        }
+    }
+}
+
 # Category selection
 $selectedCategories = Show-CategoryMenu
 
