@@ -237,7 +237,7 @@ try {
 
 function Remove-Duplicates {
     param($AppList)
-    return $AppList | Where-Object { $_ -and $_.Trim() -ne "" } | Sort-Object -Unique
+    return @($AppList | Where-Object { $_ -and $_.Trim() -ne "" } | Sort-Object -Unique)
 }
 
 function Get-ConfigCategories {
@@ -399,10 +399,10 @@ function Get-AppsFromCategories {
             Write-Host "WARNING: Category '$cat' not found in apps.json - skipping." -ForegroundColor DarkYellow
             continue
         }
-        $apps += $catApps
+        $apps += @($catApps)
     }
 
-    return $apps
+    return @($apps)
 }
 
 # ==========================================
@@ -538,8 +538,8 @@ Write-Host ""
 $catLine = $selectedCategories -join ", "
 Write-Host "  Categories : $catLine" -ForegroundColor Cyan
 
-$apps = Get-AppsFromCategories $selectedCategories
-$apps = Remove-Duplicates $apps
+$apps = @(Get-AppsFromCategories $selectedCategories)
+$apps = @(Remove-Duplicates $apps)
 
 $appCount = $apps.Count
 Write-Host "  Apps       : $appCount" -ForegroundColor DarkGray
