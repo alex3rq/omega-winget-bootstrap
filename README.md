@@ -65,6 +65,41 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\omega-winget-bootstrap.ps1
 
 ---
 
+## Optimized Variant + Snapshot Mode
+
+`omega-winget-bootstrap.optimized.ps1` is a faster variant of the script: it batches winget status checks into one `winget list` + one `winget upgrade` call instead of two calls per app, and adds a `-Snapshot` mode.
+
+```
+.\omega-winget-bootstrap.optimized.ps1 [-DryRun] [-Update] [-Snapshot] [-SnapshotPath <path>] [-ConfigFile <path>]
+```
+
+| Flag              | Description                                                                          |
+|-------------------|---------------------------------------------------------------------------------------|
+| `-Snapshot`       | Scan currently-installed apps (`winget export`) and write a category-keyed json file (default `apps-omega.json`) |
+| `-SnapshotPath`   | Override the snapshot output path (default `apps-omega.json`)                        |
+| `-ConfigFile`     | Load a specific config file instead of the auto-detected default                     |
+
+Apps that are already listed in `apps.json` keep their category in the snapshot; anything installed but not curated there is grouped under `"Uncategorized"` so nothing gets silently dropped. Only apps from the winget catalog source are included (Microsoft Store apps aren't reinstallable via `winget install --id`, so they're skipped).
+
+Once `apps-omega.json` exists, normal runs (`-DryRun` or otherwise) auto-load it instead of `apps.json` — no flag needed. Pass `-ConfigFile apps.json` to opt back into the general list even if a snapshot exists.
+
+```powershell
+# Capture your current machine setup
+.\omega-winget-bootstrap.optimized.ps1 -Snapshot
+
+# Later runs (or on a fresh machine, after copying apps-omega.json) auto-use the snapshot
+.\omega-winget-bootstrap.optimized.ps1
+
+# Force the general apps.json even though a snapshot exists
+.\omega-winget-bootstrap.optimized.ps1 -ConfigFile apps.json
+```
+
+Re-run `-Snapshot` any time to refresh `apps-omega.json` against your current setup — it's a full rescan, not a merge.
+
+`apps-omega.json` is a personal machine snapshot, not a curated list — add it to `.gitignore` if you don't want to commit it, or keep it versioned if you want a portable copy of your own setup.
+
+---
+
 ## Interactive Menu
 
 When the script launches, you get a toggle menu:

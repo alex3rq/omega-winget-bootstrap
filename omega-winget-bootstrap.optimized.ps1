@@ -8,7 +8,12 @@
 # hardened error handling / path resolution.
 #
 # Usage:
-#   .\omega-winget-bootstrap.optimized.ps1 [-DryRun] [-Update]
+#   .\omega-winget-bootstrap.optimized.ps1 [-DryRun] [-Update] [-Snapshot] [-SnapshotPath <path>] [-ConfigFile <path>]
+#
+# -Snapshot scans currently-installed winget apps and writes apps-omega.json
+# (category-keyed, same shape as apps.json). Once apps-omega.json exists,
+# normal runs auto-load it instead of apps.json - pass -ConfigFile apps.json
+# to opt back into the general list.
 #
 # Recommended launch:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File .\omega-winget-bootstrap.optimized.ps1
@@ -16,7 +21,10 @@
 
 param(
     [switch]$DryRun,
-    [switch]$Update
+    [switch]$Update,
+    [switch]$Snapshot,
+    [string]$SnapshotPath = "apps-omega.json",
+    [string]$ConfigFile
 )
 
 Set-StrictMode -Version Latest
@@ -35,20 +43,191 @@ if ($Update) {
 }
 
 # ==========================================
+# Batched App Status (single winget list / winget upgrade call)
+# ==========================================
+# Defined early (before Snapshot Mode / Load Config) since -Snapshot needs
+# these before the rest of the script's functions are reached.
+
+# Parses "Name  Id  Version  ..." winget table output into a map of
+# Id -> Name. Matches the Id as a whitespace-bounded token so an Id that is
+# a substring of another Id's line can't produce a false match.
+function ConvertFrom-WingetTable {
+    param([string[]]$RawOutput)
+
+    $map = @{}
+    if (-not $RawOutput) {
+        return $map
+    }
+
+    foreach ($line in $RawOutput) {
+        if ($line -notmatch '^\S') {
+            continue
+        }
+        # Winget columns are separated by 2+ spaces.
+        $cols = [regex]::Split($line.TrimEnd(), '\s{2,}')
+        if ($cols.Count -lt 2) {
+            continue
+        }
+
+        # Find the column that looks like a winget package Id (contains a dot,
+        # no spaces) - this is more reliable than assuming a fixed column index
+        # since header/separator rows and localized columns vary.
+        for ($c = 1; $c -lt $cols.Count; $c++) {
+            $candidate = $cols[$c].Trim()
+            if ($candidate -match '^[\w.+-]+\.[\w.+-]+$') {
+                $name = $cols[0].Trim().TrimEnd('.')
+                if ($name.Length -gt 0 -and -not $map.ContainsKey($candidate)) {
+                    $map[$candidate] = $name
+                }
+                break
+            }
+        }
+    }
+
+    return $map
+}
+
+function Get-WingetStatusMaps {
+    Write-Host "Querying winget (list + upgrade) - one batch call each..." -ForegroundColor DarkGray
+
+    $listRaw = winget list --accept-source-agreements 2>$null
+    $upgradeRaw = winget upgrade --accept-source-agreements 2>$null
+
+    $installedMap = ConvertFrom-WingetTable $listRaw
+    $upgradeMap   = ConvertFrom-WingetTable $upgradeRaw
+
+    return @{
+        Installed = $installedMap
+        Upgradable = $upgradeMap
+    }
+}
+
+# `winget list` table-scraping (ConvertFrom-WingetTable) can misdetect a
+# Version column as the Id when a row has no real Id (unknown source, or
+# a non-winget-catalog package), polluting output with garbage like
+# "1.2.3". `winget export` returns only real, reinstallable PackageIdentifiers,
+# so it's the reliable source for -Snapshot's list of installed app ids.
+function Get-InstalledPackageIds {
+    $exportPath = Join-Path ([System.IO.Path]::GetTempPath()) "omega-winget-export-$([guid]::NewGuid()).json"
+    try {
+        winget export -o $exportPath --accept-source-agreements 2>$null | Out-Null
+        if (-not (Test-Path $exportPath)) {
+            return @()
+        }
+        $exportData = Get-Content $exportPath -Raw | ConvertFrom-Json
+        $ids = @()
+        foreach ($source in @($exportData.Sources)) {
+            # Only the winget catalog source is reinstallable via
+            # `winget install --id X -e` (no -s flag). Skip other sources
+            # (e.g. msstore) whose ids need a source-specific install.
+            $sourceArg = $source.SourceDetails.Argument
+            if ($sourceArg -notmatch 'winget\.microsoft\.com') {
+                continue
+            }
+            foreach ($pkg in @($source.Packages)) {
+                $ids += $pkg.PackageIdentifier
+            }
+        }
+        return @($ids | Sort-Object -Unique)
+    } finally {
+        if (Test-Path $exportPath) {
+            Remove-Item $exportPath -Force
+        }
+    }
+}
+
+# ==========================================
+# Snapshot Mode
+# ==========================================
+# Scans what's actually installed via winget and writes a category-keyed
+# json file (same shape as apps.json). Apps already present in apps.json
+# keep their category; anything installed but not curated there lands in
+# "Uncategorized" so the snapshot never silently drops apps.
+
+if ($Snapshot) {
+    $wingetVersion = winget --version 2>$null
+    if (-not $wingetVersion) {
+        Write-Host "ERROR: winget not found. Install App Installer from the Microsoft Store." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Exporting installed package list via winget export..." -ForegroundColor DarkGray
+    $installedIds = @(Get-InstalledPackageIds)
+
+    $referencePath = Join-Path $PSScriptRoot "apps.json"
+    $reference = $null
+    if (Test-Path $referencePath) {
+        try {
+            $reference = Get-Content $referencePath -Raw | ConvertFrom-Json
+        } catch {
+            Write-Host "WARNING: Failed to parse apps.json for categorization - all installed apps will be Uncategorized." -ForegroundColor DarkYellow
+            $reference = $null
+        }
+    }
+
+    $snapshotData = [ordered]@{}
+    $claimed = New-Object System.Collections.Generic.HashSet[string]
+
+    if ($reference) {
+        foreach ($cat in ($reference.PSObject.Properties | Select-Object -ExpandProperty Name)) {
+            $catIds = @(@($reference.$cat) | Where-Object { $installedIds -contains $_ } | Sort-Object -Unique)
+            foreach ($id in $catIds) {
+                [void]$claimed.Add($id)
+            }
+            if ($catIds.Count -gt 0) {
+                $snapshotData[$cat] = @($catIds)
+            }
+        }
+    }
+
+    $uncategorized = @($installedIds | Where-Object { -not $claimed.Contains($_) } | Sort-Object -Unique)
+    if ($uncategorized.Count -gt 0) {
+        $snapshotData["Uncategorized"] = $uncategorized
+    }
+
+    $outPath = $SnapshotPath
+    if (-not [System.IO.Path]::IsPathRooted($outPath)) {
+        $outPath = Join-Path $PSScriptRoot $outPath
+    }
+
+    $snapshotData | ConvertTo-Json -Depth 5 | Set-Content -Path $outPath -Encoding UTF8
+
+    Write-Host ""
+    Write-Host "Snapshot written to $outPath" -ForegroundColor Green
+    Write-Host ("  Categories    : {0}" -f $snapshotData.Keys.Count) -ForegroundColor DarkGray
+    Write-Host ("  Apps captured : {0}" -f $installedIds.Count) -ForegroundColor DarkGray
+    Write-Host ("  Uncategorized : {0}" -f $uncategorized.Count) -ForegroundColor DarkGray
+    exit 0
+}
+
+# ==========================================
 # Load Config
 # ==========================================
 
-$configPath = Join-Path $PSScriptRoot "apps.json"
+if (-not $ConfigFile) {
+    $snapshotCandidate = Join-Path $PSScriptRoot "apps-omega.json"
+    if (Test-Path $snapshotCandidate) {
+        $ConfigFile = "apps-omega.json"
+        Write-Host "Using existing snapshot: apps-omega.json" -ForegroundColor DarkGray
+    } else {
+        $ConfigFile = "apps.json"
+    }
+}
+
+$configPath = $ConfigFile
+if (-not [System.IO.Path]::IsPathRooted($configPath)) {
+    $configPath = Join-Path $PSScriptRoot $ConfigFile
+}
 
 if (!(Test-Path $configPath)) {
-    Write-Host "ERROR: apps.json not found at $configPath" -ForegroundColor Red
+    Write-Host "ERROR: config file not found at $configPath" -ForegroundColor Red
     exit 1
 }
 
 try {
     $config = Get-Content $configPath -Raw | ConvertFrom-Json
 } catch {
-    Write-Host "ERROR: Failed to parse apps.json - $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "ERROR: Failed to parse $ConfigFile - $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
@@ -227,62 +406,10 @@ function Get-AppsFromCategories {
 }
 
 # ==========================================
-# Batched App Status (single winget list / winget upgrade call)
+# App Status
 # ==========================================
-
-# Parses "Name  Id  Version  ..." winget table output into a map of
-# Id -> Name. Matches the Id as a whitespace-bounded token so an Id that is
-# a substring of another Id's line can't produce a false match.
-function ConvertFrom-WingetTable {
-    param([string[]]$RawOutput)
-
-    $map = @{}
-    if (-not $RawOutput) {
-        return $map
-    }
-
-    foreach ($line in $RawOutput) {
-        if ($line -notmatch '^\S') {
-            continue
-        }
-        # Winget columns are separated by 2+ spaces.
-        $cols = [regex]::Split($line.TrimEnd(), '\s{2,}')
-        if ($cols.Count -lt 2) {
-            continue
-        }
-
-        # Find the column that looks like a winget package Id (contains a dot,
-        # no spaces) - this is more reliable than assuming a fixed column index
-        # since header/separator rows and localized columns vary.
-        for ($c = 1; $c -lt $cols.Count; $c++) {
-            $candidate = $cols[$c].Trim()
-            if ($candidate -match '^[\w.+-]+\.[\w.+-]+$') {
-                $name = $cols[0].Trim().TrimEnd('.')
-                if ($name.Length -gt 0 -and -not $map.ContainsKey($candidate)) {
-                    $map[$candidate] = $name
-                }
-                break
-            }
-        }
-    }
-
-    return $map
-}
-
-function Get-WingetStatusMaps {
-    Write-Host "Querying winget (list + upgrade) - one batch call each..." -ForegroundColor DarkGray
-
-    $listRaw = winget list --accept-source-agreements 2>$null
-    $upgradeRaw = winget upgrade --accept-source-agreements 2>$null
-
-    $installedMap = ConvertFrom-WingetTable $listRaw
-    $upgradeMap   = ConvertFrom-WingetTable $upgradeRaw
-
-    return @{
-        Installed = $installedMap
-        Upgradable = $upgradeMap
-    }
-}
+# ConvertFrom-WingetTable / Get-WingetStatusMaps are defined near the top of
+# the script (needed by -Snapshot mode before this point is reached).
 
 function Get-AppStatus {
     param($StatusMaps, [string]$AppId)
